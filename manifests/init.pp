@@ -15,6 +15,10 @@
 #   Package version to install.
 #   Default: 'latest'
 #
+# @param use_letsencrypt
+#   Whether to configure Plex Media Server to use Let's Encrypt certificates for secure access.
+#   Default: false
+#
 # @param ensure
 #   Whether the package should be present or absent.
 #   Default: 'present'
@@ -23,6 +27,7 @@ class plexmediaserver (
   Stdlib::HTTPSUrl $repo_uri        = 'https://repo.plex.tv',
   Stdlib::HTTPSUrl $gpg_key_uri     = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
   String $install_version           = 'latest',
+  Boolean $use_letsencrypt          = false,
   Enum['present', 'absent'] $ensure = 'present',
 ) {
   $family = $facts['os']['family']
