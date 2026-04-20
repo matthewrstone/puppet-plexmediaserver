@@ -20,8 +20,8 @@
 #   Default: 'present'
 #
 class plexmediaserver (
-  Stdlib::Uri $repo_uri             = 'https://repo.plex.tv',
-  Stdlib::Uri $gpg_key_uri          = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
+  Stdlib::HTTPSUrl $repo_uri        = 'https://repo.plex.tv',
+  Stdlib::HTTPSUrl $gpg_key_uri     = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
   String $install_version           = 'latest',
   Enum['present', 'absent'] $ensure = 'present',
 ) {
