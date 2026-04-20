@@ -69,7 +69,7 @@ class plexmediaserver (
     require => Package['plexmediaserver'],
   }
 
-  if $plexmediaserver::letsencrypt {
+  if $use_letsencrypt {
     include plexmediaserver::secure
   }
 }
