@@ -15,10 +15,10 @@
 #   DNS provider requires an email for domain registration.
 class plexmediaserver::secure (
   String $dns_provider = 'cloudflare',
-  String $dns_provider_token = Undef,
-  Optional[String] $dns_provider_email = Undef,
+  String $dns_provider_token = undef,
+  Optional[String] $dns_provider_email = undef,
   String $domain_name = $facts['networking']['fqdn'],
-  Optional[String] $domain_contact_email = Undef,
+  Optional[String] $domain_contact_email = undef,
 ) {
   class { 'letsencrypt':
     package_ensure => latest,
