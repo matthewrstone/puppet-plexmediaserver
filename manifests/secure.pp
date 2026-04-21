@@ -13,6 +13,11 @@
 # @param domain_contact_email
 #   Email address to use for domain registration. Required if letsencrypt is true and the
 #   DNS provider requires an email for domain registration.
+# @param cert_dir
+#   Directory where Plex Media Server expects its SSL certificates. Required if letsencrypt is true.
+# @param letsencrypt_conf_dir
+#   Directory where Let's Encrypt configuration and certificates will be stored. Required if letsencrypt is true.
+#
 class plexmediaserver::secure (
   String $dns_provider,
   String $dns_provider_token,

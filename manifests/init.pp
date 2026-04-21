@@ -43,16 +43,14 @@ class plexmediaserver (
       }
     }
     'Debian': {
-      apt::key { 'plexmediaserver':
-        ensure => present,
-        id     => 'PlexSign.v2',
-        source => $gpg_key_uri,
-      }
       apt::source { 'plexmediaserver':
         ensure   => present,
         location => "${repo_uri}/deb/",
         repos    => 'public main',
-        key      => 'PlexSign.v2',
+        key      => {
+          name   => 'PlexSign.v2',
+          source => $gpg_key_uri,
+        },
       }
     }
     default: {
