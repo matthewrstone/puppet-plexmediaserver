@@ -32,6 +32,12 @@ class plexmediaserver::secure (
     config         => { email  => $dns_provider_email, },
     config_dir     => $letsencrypt_conf_dir,
   }
+
+  class { 'letsencrypt::plugin::dns_cloudflare':
+    api_token      => $dns_provider_token,
+    manage_package => true,
+    require        => Class['letsencrypt'],
+  }
   letsencrypt::certonly { 'console-services':
     domains              => [$domain_name],
     plugin               => $dns_provider,
