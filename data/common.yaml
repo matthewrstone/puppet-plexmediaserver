@@ -1,5 +1,4 @@
 ---
-plexmediaserver::secure::dns_provider: 'cloudflare'
 plexmediaserver::secure::letsencrypt_conf_dir: "/etc/letsencrypt"
 plexmediaserver::secure::cert_dir: '/var/lib/plexmediaserver/Resources/SSL'
 plexmediaserver::secure::domain_name: "%{facts.networking.fqdn}"
