@@ -48,7 +48,7 @@ class plexmediaserver (
         location => "${repo_uri}/deb/",
         repos    => 'public main',
         key      => {
-          name   => 'PlexSign.v2',
+          name   => 'PlexSign.v2.key',
           source => $gpg_key_uri,
         },
       }
