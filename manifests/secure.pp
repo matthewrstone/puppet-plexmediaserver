@@ -25,7 +25,7 @@ class plexmediaserver::secure (
   class { 'letsencrypt':
     package_ensure => latest,
     config         => { email  => $dns_provider_email, },
-    config_dir     => $letsencrypt::config_dir,
+    config_dir     => $letsencrypt_conf_dir,
   }
   letsencrypt::certonly { 'console-services':
     domains              => [$domain_name],
