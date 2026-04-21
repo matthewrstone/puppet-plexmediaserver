@@ -62,7 +62,7 @@ class plexmediaserver (
   }
 
   service { 'plexmediaserver':
-    ensure  => 'present',
+    ensure  => 'running',
     enable  => true,
     require => Package['plexmediaserver'],
   }
