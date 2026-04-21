@@ -52,7 +52,7 @@ class plexmediaserver (
         location => "${repo_uri}/deb/",
         repos    => 'main',
         release  => 'public',
-        options  => 'signed-by=/usr/share/keyrings/plexmediaserver.v2.gpg',
+        keyring  => '/usr/share/keyrings/plexmediaserver.v2.gpg',
         require  => Exec['import-plex-gpg-key'],
         notify   => Class['apt::update'],
       }
