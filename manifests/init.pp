@@ -43,15 +43,18 @@ class plexmediaserver (
       }
     }
     'Debian': {
-      apt::key { 'PlexSign.v2.key':
-        ensure => present,
-        source => $gpg_key_uri,
+      exec { 'import-plex-gpg-key':
+        command => '/usr/bin/curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.v2.key | /usr/bin/gpg --yes --dearmor -o /usr/share/keyrings/plexmediaserver.v2.gpg',
+        creates => '/usr/share/keyrings/plexmediaserver.v2.gpg',
       }
-      apt::source { 'plexmediaserver':
-        ensure   => present,
+
+      apt::source { 'plex':
         location => "${repo_uri}/deb/",
-        repos    => 'public main',
-        key      => 'PlexSign.v2.key',
+        repos    => 'main',
+        release  => 'public',
+        options  => 'signed-by=/usr/share/keyrings/plexmediaserver.v2.gpg',
+        require  => Exec['import-plex-gpg-key'],
+        notify   => Class['apt::update'],
       }
     }
     default: {
