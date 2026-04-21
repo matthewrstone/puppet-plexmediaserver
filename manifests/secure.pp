@@ -14,11 +14,13 @@
 #   Email address to use for domain registration. Required if letsencrypt is true and the
 #   DNS provider requires an email for domain registration.
 class plexmediaserver::secure (
-  String $dns_provider = 'cloudflare',
-  String $dns_provider_token = undef,
-  Optional[String] $dns_provider_email = undef,
-  String $domain_name = $facts['networking']['fqdn'],
-  Optional[String] $domain_contact_email = undef,
+  String $dns_provider,
+  String $dns_provider_token,
+  String $domain_name,
+  String $cert_dir,
+  String $letsencrypt_conf_dir,
+  Optional[String] $dns_provider_email,
+  Optional[String] $domain_contact_email,
 ) {
   class { 'letsencrypt':
     package_ensure => latest,
