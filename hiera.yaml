@@ -13,9 +13,11 @@ hierarchy:
       - "os/%{facts.os.family}/%{facts.os.release.major}.yaml"
         # Used for Solaris
       - "os/%{facts.os.family}/%{facts.kernelrelease}.yaml"
-  - name: "osfamily"
+  - name: "OS Name"
     paths:
-      - "os/%{facts.os.name}.yaml"
-      - "os/%{facts.os.family}.yaml"
+      - "os/name/%{facts.os.name}.yaml"
+  - name: "OS Family"
+    paths:
+      - "os/family/%{facts.os.family}.yaml"
   - name: 'common'
     path: 'common.yaml'
