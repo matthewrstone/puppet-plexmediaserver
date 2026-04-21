@@ -1,0 +1,21 @@
+name: CD4PE Module Deployment
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  trigger-cd4pe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger CD4PE Deployment
+        env:
+          CD4PE_TOKEN: ${{ secrets.CD4PE_API_TOKEN }}
+          CD4PE_HOST: "https://${{ secrets.CD4PE_HOST }}"
+        run: |
+          # Use the CD4PE API to trigger a pipeline run
+          # Replace :workspace and :repo_name with your actual values
+          curl -X POST "${CD4PE_HOST}/cd4pe/api/v1/workspaces/:${CD4PE_WORKSPACE}/repos/:${CD4PE_REPO}/pipelines/:${CD4PE_PIPELINE}/run" \
+               -H "Authorization: Bearer ${{ secrets.CD4PE_API_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -d '{"branch": "main"}'
