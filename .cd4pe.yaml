@@ -1,0 +1,36 @@
+---
+config:
+  enable_pull_requests_from_forks: false
+  enable_pe_plans: true
+pipelines:
+  main:
+    triggers:
+    - "COMMIT"
+    stages:
+    - name: "Code Validation stage"
+      steps:
+      - type: "JOB"
+        name: "module-pdk-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "PULL_REQUEST_GATE"
+        concurrent_compilations: 0
+        all_deployments: false
+      auto_promote: false
+    - name: "Deployment stage"
+      steps:
+      - type: "DEPLOYMENT"
+        name: "Deployment to All Environments on puppet"
+        policy:
+          name: "cd4pe_deployments::eventual_consistency"
+        parameters: {}
+        timeout: 3600000
+        concurrent_compilations: 0
+        all_deployments: false
+        pe_server: "puppet"
+        target:
+          type: "NODE_GROUP"
+          node_group_id: "ebd9bdfd-50fe-4ef9-ac29-3a3a16677425"
+          environment_prefix: ""
+      auto_promote: false
+spec_version: "V1"
