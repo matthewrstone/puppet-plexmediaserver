@@ -56,6 +56,12 @@ class plexmediaserver (
         require  => Exec['import-plex-gpg-key'],
         notify   => Class['apt::update'],
       }
+
+      exec { 'update repository cache after adding Plex repo':
+        command     => '/usr/local/bin/apt update',
+        refreshonly => true,
+        subscribe   => Apt::Source['plex'],
+      }
     }
     default: {
       fail("Unsupported OS family ${family} for plexmediaserver. Supported families are RedHat and Debian.")
