@@ -126,7 +126,7 @@ with how these are currently supplied via Hiera.
 See the inline Puppet Strings documentation in `manifests/init.pp` for the
 full list of `plexmediaserver` class parameters and their defaults (repo URIs,
 `install_version`, `ensure`, `service_manager`, the supervisord tunables
-`plex_user`/`plex_group`/`plex_binary`/`plex_support_dir`, and the OS-family
+`plex_user`/`plex_binary`/`plex_support_dir`, and the OS-family
 supervisor defaults `supervisor_package`/`supervisor_conf_dir`/`supervisor_conf_ext`).
 
 ## Limitations

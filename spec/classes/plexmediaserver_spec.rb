@@ -55,7 +55,7 @@ describe 'plexmediaserver' do
                            end
 
           is_expected.to contain_file(program_config)
-            .with_content(%r{command=/usr/lib/plexmediaserver/Plex Media Server})
+            .with_content(%r{command="/usr/lib/plexmediaserver/Plex Media Server"})
             .with_content(%r{user=plex})
             .with_content(%r{stopasgroup=true})
             .with_content(%r{killasgroup=true})

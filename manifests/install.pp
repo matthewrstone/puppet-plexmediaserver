@@ -20,10 +20,12 @@ class plexmediaserver::install {
         gpgcheck      => 1,
         repo_gpgcheck => 1,
       }
+
+      Yumrepo['Plex.tv'] -> Package['plexmediaserver']
     }
     'Debian': {
       exec { 'import-plex-gpg-key':
-        command => '/usr/bin/curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.v2.key | /usr/bin/gpg --yes --dearmor -o /usr/share/keyrings/plexmediaserver.v2.gpg',
+        command => "/usr/bin/curl -fsSL ${plexmediaserver::gpg_key_uri} | /usr/bin/gpg --yes --dearmor -o /usr/share/keyrings/plexmediaserver.v2.gpg",
         creates => '/usr/share/keyrings/plexmediaserver.v2.gpg',
       }
 
@@ -35,6 +37,8 @@ class plexmediaserver::install {
         require  => Exec['import-plex-gpg-key'],
         notify   => Class['apt::update'],
       }
+
+      Class['apt::update'] -> Package['plexmediaserver']
     }
     default: {
       fail("Unsupported OS family ${family} for plexmediaserver. Supported families are RedHat and Debian.")

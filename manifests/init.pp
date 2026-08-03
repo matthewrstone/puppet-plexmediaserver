@@ -18,8 +18,6 @@
 #   `virtual` fact: 'lxc' => supervisord, everything else => systemd.
 # @param plex_user
 #   User the Plex process runs as (supervisord path).
-# @param plex_group
-#   Group the Plex process runs as (supervisord path).
 # @param plex_binary
 #   Absolute path to the Plex Media Server binary (supervisord path).
 # @param plex_support_dir
@@ -38,7 +36,6 @@ class plexmediaserver (
   Enum['present', 'absent'] $ensure                        = 'present',
   Optional[Enum['systemd', 'supervisord']] $service_manager = undef,
   String $plex_user                                        = 'plex',
-  String $plex_group                                       = 'plex',
   Stdlib::Absolutepath $plex_binary                        = '/usr/lib/plexmediaserver/Plex Media Server',
   Stdlib::Absolutepath $plex_support_dir                   = '/var/lib/plexmediaserver/Library/Application Support',
   String $supervisor_package                               = 'supervisor',

@@ -3,7 +3,7 @@
       String $plex_support_dir,
 | -%>
 [program:plexmediaserver]
-command=<%= $plex_binary %>
+command="<%= $plex_binary %>"
 user=<%= $plex_user %>
 autostart=true
 autorestart=true
