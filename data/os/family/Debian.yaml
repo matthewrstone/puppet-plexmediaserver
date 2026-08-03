@@ -1,0 +1,4 @@
+---
+plexmediaserver::supervisor_package: 'supervisor'
+plexmediaserver::supervisor_conf_dir: '/etc/supervisor/conf.d'
+plexmediaserver::supervisor_conf_ext: '.conf'

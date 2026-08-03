@@ -6,7 +6,22 @@
   "license": "Apache-2.0",
   "source": "https://github.com/matthew-stone/puppet-plexmediaserver",
   "dependencies": [
-
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 9.0.0 < 11.0.0"
+    },
+    {
+      "name": "puppetlabs/apt",
+      "version_requirement": ">= 9.0.0 < 11.0.0"
+    },
+    {
+      "name": "puppet/yum",
+      "version_requirement": ">= 7.0.0 < 10.0.0"
+    },
+    {
+      "name": "puppet/letsencrypt",
+      "version_requirement": ">= 10.0.0 < 12.0.0"
+    }
   ],
   "operatingsystem_support": [
     {
@@ -66,7 +81,7 @@
       "version_requirement": ">= 7.24 < 9.0.0"
     }
   ],
-  "pdk-version": "3.5.0",
+  "pdk-version": "3.6.1",
   "template-url": "pdk-default#3.5.0",
   "template-ref": "tags/3.5.0-0-ged6c77a"
 }
