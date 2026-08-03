@@ -16,6 +16,18 @@ describe 'plexmediaserver' do
         it { is_expected.to compile.and_raise_error(%r{requires use_letsencrypt}) }
       end
 
+      context 'with configure_ssl and use_letsencrypt but without ssl_pkcs12_password' do
+        let(:hiera_config) { 'spec/fixtures/hiera/hiera.yaml' }
+        let(:params) do
+          {
+            'use_letsencrypt' => true,
+            'configure_ssl'   => true,
+          }
+        end
+
+        it { is_expected.to compile.and_raise_error(%r{ssl_pkcs12_password}) }
+      end
+
       context 'with configure_ssl and use_letsencrypt' do
         let(:hiera_config) { 'spec/fixtures/hiera/hiera.yaml' }
         let(:params) do

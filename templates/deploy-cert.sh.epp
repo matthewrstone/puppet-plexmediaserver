@@ -11,28 +11,31 @@
 # from the current Let's Encrypt certificate and restarts Plex.
 set -euo pipefail
 
-password="$(cat '<%= $password_file %>')"
-
 # Build the PKCS#12 bundle Plex expects (full chain + private key).
+# The password is read straight from the file by openssl itself (-passout
+# file:...) so it never appears on this process's command line.
 openssl pkcs12 -export \
   -inkey '<%= $privkey %>' \
   -in '<%= $fullchain %>' \
   -out '<%= $p12_path %>' \
-  -passout "pass:${password}"
+  -passout file:'<%= $password_file %>'
 
 chown '<%= $plex_user %>':'<%= $plex_user %>' '<%= $p12_path %>'
 chmod 0600 '<%= $p12_path %>'
 
 # Write the p12 password into Plex's customCertificateKey attribute.
 # Done here (not via augeas) so the secret never enters the Puppet catalog.
+# The password is read directly from the file by Ruby, never passed via
+# argv or the environment.
 prefs='<%= $prefs_file %>'
 if [ -f "${prefs}" ]; then
-  PLEX_P12_PW="${password}" /opt/puppetlabs/puppet/bin/ruby -rrexml/document -e '
-    prefs = ARGV[0]
+  /opt/puppetlabs/puppet/bin/ruby -rrexml/document -e '
+    prefs, password_file = ARGV
+    password = File.read(password_file)
     doc = REXML::Document.new(File.read(prefs))
-    doc.root.add_attribute("customCertificateKey", ENV["PLEX_P12_PW"])
+    doc.root.add_attribute("customCertificateKey", password)
     File.open(prefs, "w") { |f| doc.write(f) }
-  ' "${prefs}"
+  ' "${prefs}" '<%= $password_file %>'
 fi
 
 # Restart Plex so it loads the new certificate.
