@@ -64,10 +64,11 @@ describe 'plexmediaserver' do
           is_expected.to contain_augeas('plex-ssl-preferences')
             .with_incl('/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml')
             .with_lens('Xml.lns')
+            .with_onlyif('match . size > 0')
         end
         it 'guards on Preferences.xml existing and sets the cert attributes' do
           aug = catalogue.resource('Augeas', 'plex-ssl-preferences')
-          expect(aug[:onlyif]).to match(%r{size > 0})
+          expect(aug[:onlyif]).to eq('match . size > 0')
           expect(aug[:changes].join("\n")).to match(%r{customCertificatePath})
           expect(aug[:changes].join("\n")).to match(%r{customCertificateDomain})
           expect(aug[:changes].join("\n")).to match(%r{secureConnections})

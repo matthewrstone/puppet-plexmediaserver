@@ -62,7 +62,7 @@ class plexmediaserver::ssl {
     incl    => $prefs_file,
     lens    => 'Xml.lns',
     context => "/files${prefs_file}/Preferences",
-    onlyif  => 'match Preferences size > 0',
+    onlyif  => 'match . size > 0',
     changes => [
       "set #attribute/customCertificatePath '${p12_path}'",
       "set #attribute/customCertificateDomain '${domain_name}'",
