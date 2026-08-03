@@ -138,35 +138,36 @@ supervisor defaults `supervisor_package`/`supervisor_conf_dir`/`supervisor_conf_
   the systemd unit for you, so you must mask/disable it yourself to avoid two
   supervisors fighting over the same process.
 
-* **Known issue: `use_letsencrypt => true` requires explicit parameters.**
+* **Known issue: `use_letsencrypt => true` requires explicit Hiera data.**
   The shipped `data/common.yaml` defines
   `plexmediaserver::secure::domain_email`, but `plexmediaserver::secure`
   actually declares `dns_provider_email` and `domain_contact_email` — the
   Hiera key does not match either parameter name, so it is never picked up.
   Relying on the module's default Hiera data alone will therefore fail to
   compile (`dns_provider`, `dns_provider_token`, and `domain_name` also have
-  no defaults and must be supplied). Until this is fixed upstream, supply the
-  required parameters explicitly, either via resource-style declaration:
+  no defaults and must be supplied).
 
-  ```puppet
-  class { 'plexmediaserver':
-    use_letsencrypt => true,
-  }
+  Note that `use_letsencrypt => true` already `include`s
+  `plexmediaserver::secure` internally, so you cannot also declare
+  `class { 'plexmediaserver::secure': ... }` yourself — Puppet would raise a
+  "Duplicate declaration" error. The only working fix is to supply the
+  required values via Hiera, using the class's real parameter names as the
+  keys (automatic parameter lookup):
 
-  class { 'plexmediaserver::secure':
-    dns_provider       => 'cloudflare',
-    dns_provider_token => lookup('profile::plex::cf_token', String, 'first', undef),
-    domain_name        => 'plex.example.com',
-    cert_dir           => '/var/lib/plexmediaserver/Resources/SSL',
-    letsencrypt_conf_dir => '/etc/letsencrypt',
-  }
+  ```yaml
+  # e.g. in your own site data, keyed above/instead of this module's data/common.yaml
+  plexmediaserver::secure::dns_provider: 'cloudflare'
+  plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
+  plexmediaserver::secure::domain_name: 'plex.example.com'
+  plexmediaserver::secure::cert_dir: '/var/lib/plexmediaserver/Resources/SSL'
+  plexmediaserver::secure::letsencrypt_conf_dir: '/etc/letsencrypt'
+  plexmediaserver::secure::dns_provider_email: 'you@example.com'
+  plexmediaserver::secure::domain_contact_email: 'you@example.com'
   ```
 
-  or by correcting your own Hiera data to key on
-  `plexmediaserver::secure::dns_provider_email` /
-  `plexmediaserver::secure::domain_contact_email` (and supplying
-  `dns_provider` / `dns_provider_token` / `domain_name`) instead of relying on
-  the module's `data/common.yaml` as shipped.
+  Until the mis-keyed `data/common.yaml` entry is fixed upstream, these keys
+  must be set in Hiera data that takes precedence over this module's own
+  `data/common.yaml` (e.g. in your control-repo's site hierarchy).
 
 ## Development
 
