@@ -10,3 +10,4 @@ fixtures:
       repo: 'puppet/epel'
       ref: '5.0.0'
     cron_core: 'puppetlabs/cron_core'
+    augeas_core: 'puppetlabs/augeas_core'

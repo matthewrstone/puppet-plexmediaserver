@@ -1,5 +1,10 @@
 ---
+lookup_options:
+  "^plexmediaserver::secure::dns_provider_token$":
+    convert_to: "Sensitive"
+
 plexmediaserver::secure::letsencrypt_conf_dir: "/etc/letsencrypt"
-plexmediaserver::secure::cert_dir: '/var/lib/plexmediaserver/Resources/SSL'
+plexmediaserver::secure::cert_dir: "/var/lib/plexmediaserver/Resources/SSL"
 plexmediaserver::secure::domain_name: "%{facts.networking.fqdn}"
-plexmediaserver::secure::domain_email: puppet@%{facts.networking.domain}
+plexmediaserver::secure::dns_provider_email: "puppet@%{facts.networking.domain}"
+plexmediaserver::secure::domain_contact_email: "puppet@%{facts.networking.domain}"

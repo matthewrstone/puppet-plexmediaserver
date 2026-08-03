@@ -6,7 +6,7 @@ describe 'plexmediaserver::secure' do
       let(:params) do
         {
           'dns_provider'         => 'dns-cloudflare',
-          'dns_provider_token'   => 'token',
+          'dns_provider_token'   => sensitive('token'),
           'domain_name'          => 'plex.example.com',
           'cert_dir'             => '/var/lib/plexmediaserver/Resources/SSL',
           'letsencrypt_conf_dir' => '/etc/letsencrypt',
@@ -25,6 +25,9 @@ describe 'plexmediaserver::secure' do
             .with_cron_before_command(%r{systemctl stop plexmediaserver})
             .with_cron_success_command(%r{systemctl start plexmediaserver})
         end
+        it 'unwraps the token only at the point of use, not in plaintext elsewhere' do
+          is_expected.to contain_class('letsencrypt::plugin::dns_cloudflare').with_api_token('token')
+        end
       end
 
       context 'on supervisord' do
@@ -36,6 +39,9 @@ describe 'plexmediaserver::secure' do
           is_expected.to contain_letsencrypt__certonly('console-services')
             .with_cron_before_command(%r{supervisorctl stop plexmediaserver})
             .with_cron_success_command(%r{supervisorctl start plexmediaserver})
+        end
+        it 'unwraps the token only at the point of use, not in plaintext elsewhere' do
+          is_expected.to contain_class('letsencrypt::plugin::dns_cloudflare').with_api_token('token')
         end
       end
     end

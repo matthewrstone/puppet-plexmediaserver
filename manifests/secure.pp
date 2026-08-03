@@ -20,12 +20,12 @@
 #
 class plexmediaserver::secure (
   String $dns_provider,
-  String $dns_provider_token,
+  Sensitive[String] $dns_provider_token,
   String $domain_name,
   String $cert_dir,
   String $letsencrypt_conf_dir,
-  Optional[String] $dns_provider_email,
-  Optional[String] $domain_contact_email,
+  Optional[String] $dns_provider_email  = undef,
+  Optional[String] $domain_contact_email = undef,
 ) {
   case $plexmediaserver::service_manager_real {
     'supervisord': {
@@ -45,7 +45,7 @@ class plexmediaserver::secure (
   }
 
   class { 'letsencrypt::plugin::dns_cloudflare':
-    api_token      => $dns_provider_token,
+    api_token      => $dns_provider_token.unwrap,
     manage_package => true,
     require        => Class['letsencrypt'],
   }

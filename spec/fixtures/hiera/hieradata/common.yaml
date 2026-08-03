@@ -1,0 +1,3 @@
+---
+plexmediaserver::secure::dns_provider: 'dns-cloudflare'
+plexmediaserver::secure::dns_provider_token: 'test-token'
