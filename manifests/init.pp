@@ -1,81 +1,66 @@
-# class plexmediaserver
-# Installs Plex Media Server with sane defaults.
+# @summary Install and manage Plex Media Server on VMs (systemd) or LXC (supervisord).
+#
 # Package repository information taken from
 # https://support.plex.tv/articles/235974187-enable-repository-updating-for-supported-linux-server-distributions/
 #
 # @param repo_uri
 #   Base URI for the Plex repository.
-#   Default: 'https://repo.plex.tv'
-#
 # @param gpg_key_uri
 #   URI for the Plex GPG key.
-#   Default: 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key'
-#
 # @param install_version
-#   Package version to install.
-#   Default: 'latest'
-#
+#   Package version to install ('latest' or a pinned version).
 # @param use_letsencrypt
-#   Whether to configure Plex Media Server to use Let's Encrypt certificates for secure access.
-#   Default: false
-#
+#   Whether to configure Let's Encrypt certificates for secure access.
 # @param ensure
 #   Whether the package should be present or absent.
-#   Default: 'present'
-#
+# @param service_manager
+#   Force the service manager. When undef (default), it is derived from the
+#   `virtual` fact: 'lxc' => supervisord, everything else => systemd.
+# @param plex_user
+#   User the Plex process runs as (supervisord path).
+# @param plex_group
+#   Group the Plex process runs as (supervisord path).
+# @param plex_binary
+#   Absolute path to the Plex Media Server binary (supervisord path).
+# @param plex_support_dir
+#   Plex application support directory (supervisord path).
+# @param supervisor_package
+#   Name of the supervisor package (OS-family default from module data).
+# @param supervisor_conf_dir
+#   Directory supervisord reads program configs from (OS-family default).
+# @param supervisor_conf_ext
+#   File extension for supervisor program configs (OS-family default).
 class plexmediaserver (
-  Stdlib::HTTPSUrl $repo_uri        = 'https://repo.plex.tv',
-  Stdlib::HTTPSUrl $gpg_key_uri     = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
-  String $install_version           = 'latest',
-  Boolean $use_letsencrypt          = false,
-  Enum['present', 'absent'] $ensure = 'present',
+  Stdlib::HTTPSUrl $repo_uri                                = 'https://repo.plex.tv',
+  Stdlib::HTTPSUrl $gpg_key_uri                             = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
+  String $install_version                                  = 'latest',
+  Boolean $use_letsencrypt                                 = false,
+  Enum['present', 'absent'] $ensure                        = 'present',
+  Optional[Enum['systemd', 'supervisord']] $service_manager = undef,
+  String $plex_user                                        = 'plex',
+  String $plex_group                                       = 'plex',
+  Stdlib::Absolutepath $plex_binary                        = '/usr/lib/plexmediaserver/Plex Media Server',
+  Stdlib::Absolutepath $plex_support_dir                   = '/var/lib/plexmediaserver/Library/Application Support',
+  String $supervisor_package                               = 'supervisor',
+  Stdlib::Absolutepath $supervisor_conf_dir                = '/etc/supervisor/conf.d',
+  String $supervisor_conf_ext                              = '.conf',
 ) {
-  $family = $facts['os']['family']
-  case $family {
-    'RedHat': {
-      yum::repo { 'Plex.tv':
-        ensure        => present,
-        baseurl       => "${repo_uri}/rpm/",
-        gpgkey        => $gpg_key_uri,
-        enabled       => 1,
-        gpgcheck      => 1,
-        repo_gpgcheck => 1,
-      }
+  if $service_manager =~ Undef {
+    $service_manager_real = $facts['virtual'] ? {
+      'lxc'   => 'supervisord',
+      default => 'systemd',
     }
-    'Debian': {
-      exec { 'import-plex-gpg-key':
-        command => '/usr/bin/curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.v2.key | /usr/bin/gpg --yes --dearmor -o /usr/share/keyrings/plexmediaserver.v2.gpg',
-        creates => '/usr/share/keyrings/plexmediaserver.v2.gpg',
-      }
-
-      apt::source { 'plex':
-        location => "${repo_uri}/deb/",
-        repos    => 'main',
-        release  => 'public',
-        keyring  => '/usr/share/keyrings/plexmediaserver.v2.gpg',
-        require  => Exec['import-plex-gpg-key'],
-        notify   => Class['apt::update'],
-      }
-
-      exec { 'update repository cache after adding Plex repo':
-        command     => '/usr/local/bin/apt update',
-        refreshonly => true,
-        subscribe   => Apt::Source['plex'],
-      }
-    }
-    default: {
-      fail("Unsupported OS family ${family} for plexmediaserver. Supported families are RedHat and Debian.")
-    }
-  }
-  package { 'plexmediaserver':
-    ensure => $install_version,
+  } else {
+    $service_manager_real = $service_manager
   }
 
-  service { 'plexmediaserver':
-    ensure  => 'running',
-    enable  => true,
-    require => Package['plexmediaserver'],
-  }
+  contain plexmediaserver::install
+  contain plexmediaserver::config
+  contain plexmediaserver::service
+
+  Class['plexmediaserver::install']
+  -> Class['plexmediaserver::config']
+  ~> Class['plexmediaserver::service']
 
   if $use_letsencrypt {
     include plexmediaserver::secure
