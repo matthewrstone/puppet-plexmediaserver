@@ -10,6 +10,7 @@
     * [LXC usage (supervisord)](#lxc-usage-supervisord)
     * [Forcing the service manager](#forcing-the-service-manager)
     * [Let's Encrypt (`use_letsencrypt`)](#lets-encrypt-use_letsencrypt)
+    * [Serving Plex over HTTPS (`configure_ssl`)](#serving-plex-over-https-configure_ssl)
 1. [Reference](#reference)
 1. [Limitations](#limitations)
 1. [Development](#development)
@@ -30,7 +31,9 @@ PID 1) or a Proxmox-style unprivileged LXC container (which typically runs
 `supervisord` as PID 1 and has no systemd).
 
 Optionally, the module can front Plex with a Let's Encrypt certificate issued
-via Cloudflare DNS-01 validation.
+via Cloudflare DNS-01 validation. A separate opt-in, `configure_ssl`, closes
+the loop by converting that certificate into a PKCS#12 bundle and wiring it
+into Plex's own `Preferences.xml` so Plex serves it directly over HTTPS.
 
 ## Setup
 
@@ -118,8 +121,74 @@ class { 'plexmediaserver':
 
 `plexmediaserver::secure` itself takes parameters such as `dns_provider`,
 `dns_provider_token`, `domain_name`, `dns_provider_email`, and
-`domain_contact_email` — see [Limitations](#limitations) for a known issue
-with how these are currently supplied via Hiera.
+`domain_contact_email`. `cert_dir`, `letsencrypt_conf_dir`, `domain_name`,
+`dns_provider_email`, and `domain_contact_email` all ship with module
+defaults in `data/common.yaml`; `dns_provider` and `dns_provider_token` do
+not, and must be supplied via your own Hiera data (automatic parameter
+lookup on `plexmediaserver::secure`):
+
+```yaml
+plexmediaserver::secure::dns_provider: 'cloudflare'
+plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
+```
+
+`dns_provider_token` is looked up as `Sensitive[String]` (the module's
+`lookup_options` convert it automatically), so store the raw token value in
+encrypted Hiera (eyaml, a vault lookup, etc.) — Puppet wraps it once it's
+read.
+
+Note the DNS plugin itself is currently **Cloudflare-specific**: the module
+always declares `letsencrypt::plugin::dns_cloudflare`, so although the
+`dns_provider` parameter reads as generic, only Cloudflare DNS-01 validation
+is actually wired up in this release.
+
+### Serving Plex over HTTPS (`configure_ssl`)
+
+Setting `configure_ssl => true` completes the loop started by
+`use_letsencrypt`: it takes the certificate `plexmediaserver::secure`
+obtains and makes Plex serve it directly, instead of just keeping it
+current on disk. `configure_ssl` requires `use_letsencrypt => true` and a
+`ssl_pkcs12_password` — the module `fail()`s compilation with a clear
+message if either is missing:
+
+```puppet
+class { 'plexmediaserver':
+  use_letsencrypt     => true,
+  configure_ssl       => true,
+  ssl_pkcs12_password => Sensitive('correct-horse-battery-staple'),
+}
+```
+
+```yaml
+# required Hiera data for use_letsencrypt (see above) — configure_ssl needs
+# nothing beyond what use_letsencrypt already requires
+plexmediaserver::secure::dns_provider: 'cloudflare'
+plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
+```
+
+Under the hood, `configure_ssl => true` includes `plexmediaserver::ssl`,
+which:
+
+* installs a managed deploy script,
+  `/usr/local/bin/plexmediaserver-deploy-cert.sh`, that converts the
+  Let's Encrypt `fullchain.pem`/`privkey.pem` into a PKCS#12 bundle at
+  `<cert_dir>/plexmediaserver.p12` (owned by `plex_user`, mode `0600`),
+  writes the p12 password into Plex's `customCertificateKey` preference,
+  and restarts Plex using the correct command for the active service
+  manager (`systemctl` or `supervisorctl`);
+* runs that script automatically whenever the certificate is renewed — it
+  is wired in as the `letsencrypt::certonly` cron's success command, so
+  renewals rebuild the p12 and restart Plex without any extra steps; and
+* uses `augeas` to set `customCertificatePath`, `customCertificateDomain`,
+  and `secureConnections` in `Preferences.xml`. `secure_connections`
+  defaults to `1` (preferred — Plex will use HTTPS when available but still
+  accept plain HTTP); set it to `2` to require HTTPS or `0` to disable it.
+
+The `ssl_pkcs12_password` you pass in never enters the Puppet catalog as a
+readable secret end-to-end: it's written to a root-only, mode `0600` file
+on the node (`show_diff => false`), and the deploy script reads it from
+that file — never from a command line or environment variable — both when
+building the p12 and when writing `customCertificateKey`.
 
 ## Reference
 
@@ -138,36 +207,38 @@ supervisor defaults `supervisor_package`/`supervisor_conf_dir`/`supervisor_conf_
   the systemd unit for you, so you must mask/disable it yourself to avoid two
   supervisors fighting over the same process.
 
-* **Known issue: `use_letsencrypt => true` requires explicit Hiera data.**
-  The shipped `data/common.yaml` defines
-  `plexmediaserver::secure::domain_email`, but `plexmediaserver::secure`
-  actually declares `dns_provider_email` and `domain_contact_email` — the
-  Hiera key does not match either parameter name, so it is never picked up.
-  Relying on the module's default Hiera data alone will therefore fail to
-  compile (`dns_provider`, `dns_provider_token`, and `domain_name` also have
-  no defaults and must be supplied).
-
+* **`use_letsencrypt => true` still requires two Hiera keys.**
+  `data/common.yaml` ships module defaults for `cert_dir`,
+  `letsencrypt_conf_dir`, `domain_name`, `dns_provider_email`, and
+  `domain_contact_email`, but `dns_provider` and `dns_provider_token` have
+  no defaults and must be supplied via your own Hiera data — see
+  [Let's Encrypt](#lets-encrypt-use_letsencrypt) above for the exact keys.
   Note that `use_letsencrypt => true` already `include`s
   `plexmediaserver::secure` internally, so you cannot also declare
   `class { 'plexmediaserver::secure': ... }` yourself — Puppet would raise a
-  "Duplicate declaration" error. The only working fix is to supply the
-  required values via Hiera, using the class's real parameter names as the
-  keys (automatic parameter lookup):
+  "Duplicate declaration" error.
 
-  ```yaml
-  # e.g. in your own site data, keyed above/instead of this module's data/common.yaml
-  plexmediaserver::secure::dns_provider: 'cloudflare'
-  plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
-  plexmediaserver::secure::domain_name: 'plex.example.com'
-  plexmediaserver::secure::cert_dir: '/var/lib/plexmediaserver/Resources/SSL'
-  plexmediaserver::secure::letsencrypt_conf_dir: '/etc/letsencrypt'
-  plexmediaserver::secure::dns_provider_email: 'you@example.com'
-  plexmediaserver::secure::domain_contact_email: 'you@example.com'
-  ```
+* **The DNS provider is currently Cloudflare-specific.** Although the
+  `dns_provider` parameter reads as generic (it's passed straight through
+  as the `letsencrypt::certonly` `plugin`), `plexmediaserver::secure` always
+  declares `class { 'letsencrypt::plugin::dns_cloudflare': }` to install and
+  configure the DNS plugin itself. Other DNS-01 providers are not currently
+  supported without modifying the module.
 
-  Until the mis-keyed `data/common.yaml` entry is fixed upstream, these keys
-  must be set in Hiera data that takes precedence over this module's own
-  `data/common.yaml` (e.g. in your control-repo's site hierarchy).
+* **`configure_ssl` needs Plex claimed first.** Plex only creates
+  `Preferences.xml` after it has run for the first time and been claimed
+  through its web UI. Until that file exists, the `augeas` resource that
+  wires in `customCertificatePath`, `customCertificateDomain`, and
+  `secureConnections` safely no-ops — it will not create or clobber the
+  file — and a later Puppet run completes the wiring once
+  `Preferences.xml` exists. The PKCS#12 bundle itself is generated
+  regardless of claim state, since it only depends on the Let's Encrypt
+  certificate.
+
+* **No extra system package needed for augeas.** The `augeas` resource
+  type and provider ship as part of the AIO `puppet-agent` package itself,
+  so no additional module dependency or system package is required to use
+  `configure_ssl`.
 
 ## Development
 
