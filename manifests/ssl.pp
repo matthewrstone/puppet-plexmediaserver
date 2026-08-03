@@ -57,4 +57,25 @@ class plexmediaserver::ssl {
     subscribe   => [Letsencrypt::Certonly['console-services'], File[$deploy_script], File[$password_file]],
     require     => File[$deploy_script, $password_file],
   }
+
+  augeas { 'plex-ssl-preferences':
+    incl    => $prefs_file,
+    lens    => 'Xml.lns',
+    context => "/files${prefs_file}/Preferences",
+    onlyif  => 'match Preferences size > 0',
+    changes => [
+      "set #attribute/customCertificatePath '${p12_path}'",
+      "set #attribute/customCertificateDomain '${domain_name}'",
+      "set #attribute/secureConnections '${plexmediaserver::secure_connections}'",
+    ],
+    notify  => Exec['plex-restart-ssl'],
+    require => Package['plexmediaserver'],
+  }
+
+  # Restart Plex when the Preferences.xml attributes change (the p12 exec restarts on cert change).
+  exec { 'plex-restart-ssl':
+    command     => $restart_command,
+    refreshonly => true,
+    path        => ['/usr/bin', '/bin'],
+  }
 }

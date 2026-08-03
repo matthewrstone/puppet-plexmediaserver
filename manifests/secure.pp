@@ -49,6 +49,11 @@ class plexmediaserver::secure (
     manage_package => true,
     require        => Class['letsencrypt'],
   }
+  $cron_success = $plexmediaserver::configure_ssl ? {
+    true    => '/usr/local/bin/plexmediaserver-deploy-cert.sh',
+    default => $start_command,
+  }
+
   letsencrypt::certonly { 'console-services':
     domains              => [$domain_name],
     plugin               => $dns_provider,
@@ -56,7 +61,7 @@ class plexmediaserver::secure (
     cron_hour            => [0,12],
     cron_minute          => '30',
     cron_before_command  => $stop_command,
-    cron_success_command => $start_command,
+    cron_success_command => $cron_success,
     require              => Class['plexmediaserver'],
     cron_output          => 'suppress',
   }

@@ -60,6 +60,24 @@ describe 'plexmediaserver' do
             .with_refreshonly(true)
             .that_subscribes_to('Letsencrypt::Certonly[console-services]')
         end
+        it do
+          is_expected.to contain_augeas('plex-ssl-preferences')
+            .with_incl('/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml')
+            .with_lens('Xml.lns')
+        end
+        it 'guards on Preferences.xml existing and sets the cert attributes' do
+          aug = catalogue.resource('Augeas', 'plex-ssl-preferences')
+          expect(aug[:onlyif]).to match(%r{size > 0})
+          expect(aug[:changes].join("\n")).to match(%r{customCertificatePath})
+          expect(aug[:changes].join("\n")).to match(%r{customCertificateDomain})
+          expect(aug[:changes].join("\n")).to match(%r{secureConnections})
+        end
+        it { is_expected.to contain_exec('plex-restart-ssl').with_refreshonly(true).with_command(%r{restart plexmediaserver}) }
+        it { is_expected.to contain_augeas('plex-ssl-preferences').that_notifies('Exec[plex-restart-ssl]') }
+        it 'routes a successful renewal through the deploy script (rebuild p12 + restart) instead of a bare start' do
+          is_expected.to contain_letsencrypt__certonly('console-services')
+            .with_cron_success_command('/usr/local/bin/plexmediaserver-deploy-cert.sh')
+        end
       end
 
       context 'without configure_ssl (default)' do
