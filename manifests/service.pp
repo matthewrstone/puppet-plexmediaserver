@@ -4,7 +4,11 @@ class plexmediaserver::service {
   assert_private()
 
   if $plexmediaserver::service_manager_real == 'supervisord' {
-    # Supervisord branch is added in Task 3.
+    exec { 'plex-supervisor-update':
+      command     => ['/usr/bin/supervisorctl', 'update'],
+      refreshonly => true,
+      path        => ['/usr/bin', '/bin', '/usr/local/bin'],
+    }
   } else {
     service { 'plexmediaserver':
       ensure => 'running',

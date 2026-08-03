@@ -1,0 +1,12 @@
+<%- | String $plex_binary,
+      String $plex_user,
+      String $plex_support_dir,
+| -%>
+[program:plexmediaserver]
+command=<%= $plex_binary %>
+user=<%= $plex_user %>
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+environment=LD_LIBRARY_PATH="/usr/lib/plexmediaserver",PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="<%= $plex_support_dir %>"
