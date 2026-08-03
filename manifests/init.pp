@@ -28,6 +28,15 @@
 #   Directory supervisord reads program configs from (OS-family default).
 # @param supervisor_conf_ext
 #   File extension for supervisor program configs (OS-family default).
+# @param configure_ssl
+#   Whether to wire the Let's Encrypt certificate into Plex (PKCS#12 + Preferences.xml).
+#   Requires use_letsencrypt => true. Default: false.
+# @param ssl_pkcs12_password
+#   Sensitive password for the generated PKCS#12 bundle (Plex customCertificateKey).
+#   Required when configure_ssl is true.
+# @param secure_connections
+#   Plex secureConnections preference when SSL is configured (0=disabled, 1=preferred, 2=required).
+#   Default: 1 (preferred).
 class plexmediaserver (
   Stdlib::HTTPSUrl $repo_uri                                = 'https://repo.plex.tv',
   Stdlib::HTTPSUrl $gpg_key_uri                             = 'https://downloads.plex.tv/plex-keys/PlexSign.v2.key',
@@ -41,6 +50,9 @@ class plexmediaserver (
   String $supervisor_package                               = 'supervisor',
   Stdlib::Absolutepath $supervisor_conf_dir                = '/etc/supervisor/conf.d',
   String $supervisor_conf_ext                              = '.conf',
+  Boolean $configure_ssl                                   = false,
+  Optional[Sensitive[String]] $ssl_pkcs12_password         = undef,
+  Integer[0,2] $secure_connections                         = 1,
 ) {
   if $service_manager =~ Undef {
     $service_manager_real = $facts['virtual'] ? {
@@ -61,5 +73,16 @@ class plexmediaserver (
 
   if $use_letsencrypt {
     include plexmediaserver::secure
+  }
+
+  if $configure_ssl {
+    if !$use_letsencrypt {
+      fail('plexmediaserver::configure_ssl requires use_letsencrypt => true (LE-fed certificates only in this release).')
+    }
+    if $ssl_pkcs12_password =~ Undef {
+      fail('plexmediaserver::configure_ssl requires ssl_pkcs12_password to be set.')
+    }
+    include plexmediaserver::ssl
+    Class['plexmediaserver::service'] -> Class['plexmediaserver::ssl']
   }
 }
