@@ -1,113 +1,174 @@
 # plexmediaserver
 
-Welcome to your new module. A short overview of the generated parts can be found
-in the [PDK documentation][1].
-
-The README template below provides a starting point with details about what
-information to include in your README.
-
 ## Table of Contents
 
 1. [Description](#description)
-1. [Setup - The basics of getting started with plexmediaserver](#setup)
-    * [What plexmediaserver affects](#what-plexmediaserver-affects)
-    * [Setup requirements](#setup-requirements)
-    * [Beginning with plexmediaserver](#beginning-with-plexmediaserver)
-1. [Usage - Configuration options and additional functionality](#usage)
-1. [Limitations - OS compatibility, etc.](#limitations)
-1. [Development - Guide for contributing to the module](#development)
+1. [Setup](#setup)
+    * [Requirements](#requirements)
+1. [Usage](#usage)
+    * [Basic VM usage (systemd)](#basic-vm-usage-systemd)
+    * [LXC usage (supervisord)](#lxc-usage-supervisord)
+    * [Forcing the service manager](#forcing-the-service-manager)
+    * [Let's Encrypt (`use_letsencrypt`)](#lets-encrypt-use_letsencrypt)
+1. [Reference](#reference)
+1. [Limitations](#limitations)
+1. [Development](#development)
 
 ## Description
 
-Install and manage Plex Media Server.
+This module installs and manages [Plex Media Server](https://www.plex.tv/) from
+the official Plex repository:
+
+* On RedHat-family systems (CentOS, RHEL, Rocky, AlmaLinux, OracleLinux) it manages
+  the repo with a native `yumrepo` resource.
+* On Debian-family systems (Debian, Ubuntu) it manages the repo with `apt::source`,
+  importing the Plex signing key as a dearmored keyring.
+
+The module also manages how the `plexmediaserver` process is supervised, since
+that differs depending on whether the target is a full VM (with systemd as
+PID 1) or a Proxmox-style unprivileged LXC container (which typically runs
+`supervisord` as PID 1 and has no systemd).
+
+Optionally, the module can front Plex with a Let's Encrypt certificate issued
+via Cloudflare DNS-01 validation.
 
 ## Setup
 
-### What plexmediaserver affects **OPTIONAL**
+### Requirements
 
-If it's obvious what your module touches, you can skip this section. For
-example, folks can probably figure out that your mysql_instance module affects
-their MySQL instances.
+This module declares the following dependencies in `metadata.json`:
 
-If there's more that they should know about, though, this is the place to
-mention:
+* [`puppetlabs/stdlib`](https://forge.puppet.com/modules/puppetlabs/stdlib) (`>= 9.0.0 < 11.0.0`)
+* [`puppetlabs/apt`](https://forge.puppet.com/modules/puppetlabs/apt) (`>= 9.0.0 < 11.0.0`) — used for the Debian/Ubuntu repo
+* [`puppetlabs/yumrepo_core`](https://forge.puppet.com/modules/puppetlabs/yumrepo_core) (`>= 1.0.0 < 4.0.0`) — used for the RedHat-family repo
+* [`puppet/letsencrypt`](https://forge.puppet.com/modules/puppet/letsencrypt) (`>= 10.0.0 < 12.0.0`) — only required when `use_letsencrypt => true`
 
-* Files, packages, services, or operations that the module will alter, impact,
-  or execute.
-* Dependencies that your module automatically installs.
-* Warnings or other important notices.
+Note: this module does **not** depend on `puppet/yum`; the RedHat repository is
+managed directly with the native `yumrepo` type via `puppetlabs/yumrepo_core`.
 
-### Setup Requirements **OPTIONAL**
-
-If your module requires anything extra before setting up (pluginsync enabled,
-another module, etc.), mention it here.
-
-If your most recent release breaks compatibility or requires particular steps
-for upgrading, you might want to include an additional "Upgrading" section here.
-
-### Beginning with plexmediaserver
-
-The very basic steps needed for a user to get the module up and running. This
-can include setup steps, if necessary, or it can be an example of the most basic
-use of the module.
+Supported operating systems (see `metadata.json` for exact releases): CentOS,
+RHEL, Rocky, AlmaLinux, OracleLinux, Debian, and Ubuntu.
 
 ## Usage
 
-Include usage examples for common use cases in the **Usage** section. Show your
-users how to use your module to solve problems, and be sure to include code
-examples. Include three to five examples of the most important or common tasks a
-user can accomplish with your module. Show users how to accomplish more complex
-tasks that involve different types, classes, and functions working in tandem.
+### Basic VM usage (systemd)
+
+On a regular VM (or any host where the `virtual` fact is not `lxc`), the
+service manager auto-detects to `systemd` and the module manages the vendor
+`plexmediaserver` systemd service:
+
+```puppet
+include plexmediaserver
+```
+
+This installs the package, configures the repository, and ensures the
+`plexmediaserver` service is running and enabled via `service { 'plexmediaserver': }`.
+
+### LXC usage (supervisord)
+
+Inside an LXC container where `virtual` reports `lxc` (e.g. an unprivileged
+Proxmox LXC with no systemd), the module auto-detects and switches to managing
+Plex via `supervisord` instead of a systemd service:
+
+```puppet
+include plexmediaserver
+```
+
+No changes are needed to your Puppet code — the auto-detection is driven by
+the `virtual` fact. Under the hood this:
+
+* installs the `supervisor` package (name/paths come from OS-family Hiera data),
+* writes a supervisor program config from an EPP template
+  (`/etc/supervisor/conf.d/plexmediaserver.conf` on Debian-family hosts,
+  `/etc/supervisord.d/plexmediaserver.ini` on RedHat-family hosts) with
+  `autostart`, `autorestart`, `stopasgroup`, and `killasgroup` set, plus the
+  Plex environment variables (`LD_LIBRARY_PATH`,
+  `PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR`), and
+* runs `supervisorctl update` (refreshonly, triggered by changes to the
+  program config) to load it — it does **not** manage a `service` resource.
+
+### Forcing the service manager
+
+The auto-detected choice can be overridden with the `service_manager`
+parameter (`Enum['systemd', 'supervisord']`):
+
+```puppet
+class { 'plexmediaserver':
+  service_manager => 'supervisord',
+}
+```
+
+This is useful, for example, on an LXC that *does* run systemd but where you
+still want supervisord to own the Plex process — see
+[Limitations](#limitations) below for what you need to do yourself in that case.
+
+### Let's Encrypt (`use_letsencrypt`)
+
+Setting `use_letsencrypt => true` includes `plexmediaserver::secure`, which
+uses `puppet/letsencrypt` with the Cloudflare DNS-01 plugin to obtain and
+renew a certificate for Plex, and installs a cron job that stops Plex before
+renewal and starts it again afterwards using the correct command for the
+active service manager (`systemctl` or `supervisorctl`).
+
+```puppet
+class { 'plexmediaserver':
+  use_letsencrypt => true,
+}
+```
+
+`plexmediaserver::secure` itself takes parameters such as `dns_provider`,
+`dns_provider_token`, `domain_name`, `dns_provider_email`, and
+`domain_contact_email` — see [Limitations](#limitations) for a known issue
+with how these are currently supplied via Hiera.
 
 ## Reference
 
-This section is deprecated. Instead, add reference information to your code as
-Puppet Strings comments, and then use Strings to generate a REFERENCE.md in your
-module. For details on how to add code comments and generate documentation with
-Strings, see the [Puppet Strings documentation][2] and [style guide][3].
-
-If you aren't ready to use Strings yet, manually create a REFERENCE.md in the
-root of your module directory and list out each of your module's classes,
-defined types, facts, functions, Puppet tasks, task plans, and resource types
-and providers, along with the parameters for each.
-
-For each element (class, defined type, function, and so on), list:
-
-* The data type, if applicable.
-* A description of what the element does.
-* Valid values, if the data type doesn't make it obvious.
-* Default value, if any.
-
-For example:
-
-```
-### `pet::cat`
-
-#### Parameters
-
-##### `meow`
-
-Enables vocalization in your cat. Valid options: 'string'.
-
-Default: 'medium-loud'.
-```
+See the inline Puppet Strings documentation in `manifests/init.pp` for the
+full list of `plexmediaserver` class parameters and their defaults (repo URIs,
+`install_version`, `ensure`, `service_manager`, the supervisord tunables
+`plex_user`/`plex_group`/`plex_binary`/`plex_support_dir`, and the OS-family
+supervisor defaults `supervisor_package`/`supervisor_conf_dir`/`supervisor_conf_ext`).
 
 ## Limitations
 
-In the Limitations section, list any incompatibilities, known issues, or other
-warnings.
+* **systemd LXCs that still want supervisord.** The module does not detect or
+  mask the vendor `plexmediaserver` systemd unit. If you are on an LXC that
+  does run systemd but you want Plex managed by supervisord anyway, set
+  `service_manager => 'supervisord'` explicitly — the module will not disable
+  the systemd unit for you, so you must mask/disable it yourself to avoid two
+  supervisors fighting over the same process.
+
+* **Known issue: `use_letsencrypt => true` requires explicit parameters.**
+  The shipped `data/common.yaml` defines
+  `plexmediaserver::secure::domain_email`, but `plexmediaserver::secure`
+  actually declares `dns_provider_email` and `domain_contact_email` — the
+  Hiera key does not match either parameter name, so it is never picked up.
+  Relying on the module's default Hiera data alone will therefore fail to
+  compile (`dns_provider`, `dns_provider_token`, and `domain_name` also have
+  no defaults and must be supplied). Until this is fixed upstream, supply the
+  required parameters explicitly, either via resource-style declaration:
+
+  ```puppet
+  class { 'plexmediaserver':
+    use_letsencrypt => true,
+  }
+
+  class { 'plexmediaserver::secure':
+    dns_provider       => 'cloudflare',
+    dns_provider_token => lookup('profile::plex::cf_token', String, 'first', undef),
+    domain_name        => 'plex.example.com',
+    cert_dir           => '/var/lib/plexmediaserver/Resources/SSL',
+    letsencrypt_conf_dir => '/etc/letsencrypt',
+  }
+  ```
+
+  or by correcting your own Hiera data to key on
+  `plexmediaserver::secure::dns_provider_email` /
+  `plexmediaserver::secure::domain_contact_email` (and supplying
+  `dns_provider` / `dns_provider_token` / `domain_name`) instead of relying on
+  the module's `data/common.yaml` as shipped.
 
 ## Development
 
-In the Development section, tell other users the ground rules for contributing
-to your project and how they should submit their work.
-
-## Release Notes/Contributors/Etc. **Optional**
-
-If you aren't using changelog, put your release notes here (though you should
-consider using changelog). You can also add any additional sections you feel are
-necessary or important to include here. Please use the `##` header.
-
-[1]: https://puppet.com/docs/pdk/latest/pdk_generating_modules.html
-[2]: https://puppet.com/docs/puppet/latest/puppet_strings.html
-[3]: https://puppet.com/docs/puppet/latest/puppet_strings_style.html
+Bug reports and pull requests are welcome. Run `pdk validate -a` and
+`pdk test unit` before submitting changes.
