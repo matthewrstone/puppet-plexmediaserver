@@ -27,6 +27,17 @@ class plexmediaserver::secure (
   Optional[String] $dns_provider_email,
   Optional[String] $domain_contact_email,
 ) {
+  case $plexmediaserver::service_manager_real {
+    'supervisord': {
+      $stop_command  = '/usr/bin/supervisorctl stop plexmediaserver'
+      $start_command = '/usr/bin/supervisorctl start plexmediaserver'
+    }
+    default: {
+      $stop_command  = '/bin/systemctl stop plexmediaserver'
+      $start_command = '/bin/systemctl start plexmediaserver'
+    }
+  }
+
   class { 'letsencrypt':
     package_ensure => latest,
     config         => { email  => $dns_provider_email, },
@@ -44,8 +55,8 @@ class plexmediaserver::secure (
     manage_cron          => true,
     cron_hour            => [0,12],
     cron_minute          => '30',
-    cron_before_command  => '/bin/systemctl stop plexmediaserver',
-    cron_success_command => '/bin/systemctl start plexmediaserver',
+    cron_before_command  => $stop_command,
+    cron_success_command => $start_command,
     require              => Class['plexmediaserver'],
     cron_output          => 'suppress',
   }

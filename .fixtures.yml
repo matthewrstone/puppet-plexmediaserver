@@ -5,3 +5,8 @@ fixtures:
     apt: 'puppetlabs/apt'
     yumrepo_core: 'puppetlabs/yumrepo_core'
     letsencrypt: 'puppet/letsencrypt'
+    inifile: 'puppetlabs/inifile'
+    epel:
+      repo: 'puppet/epel'
+      ref: '5.0.0'
+    cron_core: 'puppetlabs/cron_core'
