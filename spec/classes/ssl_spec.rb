@@ -73,11 +73,14 @@ describe 'plexmediaserver' do
           expect(aug[:changes].join("\n")).to match(%r{customCertificateDomain})
           expect(aug[:changes].join("\n")).to match(%r{secureConnections})
         end
-        it { is_expected.to contain_exec('plex-restart-ssl').with_refreshonly(true).with_command(%r{restart plexmediaserver}) }
-        it { is_expected.to contain_augeas('plex-ssl-preferences').that_notifies('Exec[plex-restart-ssl]') }
+        it { is_expected.to contain_augeas('plex-ssl-preferences').that_notifies('Exec[plex-generate-p12]') }
         it 'routes a successful renewal through the deploy script (rebuild p12 + restart) instead of a bare start' do
           is_expected.to contain_letsencrypt__certonly('console-services')
             .with_cron_success_command('/usr/local/bin/plexmediaserver-deploy-cert.sh')
+        end
+        it do
+          is_expected.to contain_file('/usr/local/bin/plexmediaserver-deploy-cert.sh')
+            .with_content(%r{systemctl restart plexmediaserver})
         end
       end
 
@@ -100,7 +103,10 @@ describe 'plexmediaserver' do
         end
 
         it { is_expected.to compile.with_all_deps }
-        it { is_expected.to contain_exec('plex-restart-ssl').with_command(%r{supervisorctl restart plexmediaserver}) }
+        it do
+          is_expected.to contain_file('/usr/local/bin/plexmediaserver-deploy-cert.sh')
+            .with_content(%r{supervisorctl restart plexmediaserver})
+        end
       end
     end
   end

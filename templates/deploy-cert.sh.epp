@@ -31,7 +31,7 @@ prefs='<%= $prefs_file %>'
 if [ -f "${prefs}" ]; then
   /opt/puppetlabs/puppet/bin/ruby -rrexml/document -e '
     prefs, password_file = ARGV
-    password = File.read(password_file)
+    password = File.read(password_file).chomp
     doc = REXML::Document.new(File.read(prefs))
     doc.root.add_attribute("customCertificateKey", password)
     File.open(prefs, "w") { |f| doc.write(f) }

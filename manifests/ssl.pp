@@ -68,14 +68,7 @@ class plexmediaserver::ssl {
       "set #attribute/customCertificateDomain '${domain_name}'",
       "set #attribute/secureConnections '${plexmediaserver::secure_connections}'",
     ],
-    notify  => Exec['plex-restart-ssl'],
+    notify  => Exec['plex-generate-p12'],
     require => Package['plexmediaserver'],
-  }
-
-  # Restart Plex when the Preferences.xml attributes change (the p12 exec restarts on cert change).
-  exec { 'plex-restart-ssl':
-    command     => $restart_command,
-    refreshonly => true,
-    path        => ['/usr/bin', '/bin'],
   }
 }

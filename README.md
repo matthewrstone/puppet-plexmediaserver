@@ -129,7 +129,7 @@ lookup on `plexmediaserver::secure`):
 
 ```yaml
 plexmediaserver::secure::dns_provider: 'cloudflare'
-plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
+plexmediaserver::secure::dns_provider_token: "%{alias('profile::plex::cf_token')}"
 ```
 
 `dns_provider_token` is looked up as `Sensitive[String]` (the module's
@@ -163,7 +163,7 @@ class { 'plexmediaserver':
 # required Hiera data for use_letsencrypt (see above) — configure_ssl needs
 # nothing beyond what use_letsencrypt already requires
 plexmediaserver::secure::dns_provider: 'cloudflare'
-plexmediaserver::secure::dns_provider_token: '%{alias('profile::plex::cf_token')}'
+plexmediaserver::secure::dns_provider_token: "%{alias('profile::plex::cf_token')}"
 ```
 
 Under the hood, `configure_ssl => true` includes `plexmediaserver::ssl`,
@@ -239,6 +239,18 @@ supervisor defaults `supervisor_package`/`supervisor_conf_dir`/`supervisor_conf_
   type and provider ship as part of the AIO `puppet-agent` package itself,
   so no additional module dependency or system package is required to use
   `configure_ssl`.
+
+* **The DNS token is exposed in the compiled catalog/PuppetDB.** The
+  Let's Encrypt Cloudflare plugin's `api_token` parameter is not
+  `Sensitive`-typed in the pinned `puppet/letsencrypt` version, so the DNS
+  token is written in plaintext to
+  `/etc/letsencrypt/.../dns-cloudflare.ini` (mode `0400`, owned by
+  `root`) and appears in the compiled catalog and PuppetDB. The module
+  still types its own `dns_provider_token` input as `Sensitive`, which
+  keeps it out of the module's own logs and reports, but it cannot
+  prevent the underlying `letsencrypt` module from exposing it further
+  downstream. The PKCS#12 password is not affected by this — it never
+  enters the catalog.
 
 ## Development
 
