@@ -85,5 +85,23 @@ describe 'plexmediaserver' do
         it { is_expected.not_to contain_class('plexmediaserver::ssl') }
       end
     end
+
+    context "on #{os} (supervisord)" do
+      let(:facts) { os_facts.merge('virtual' => 'lxc') }
+
+      context 'with configure_ssl and use_letsencrypt' do
+        let(:hiera_config) { 'spec/fixtures/hiera/hiera.yaml' }
+        let(:params) do
+          {
+            'use_letsencrypt'     => true,
+            'configure_ssl'       => true,
+            'ssl_pkcs12_password' => sensitive('p12pass'),
+          }
+        end
+
+        it { is_expected.to compile.with_all_deps }
+        it { is_expected.to contain_exec('plex-restart-ssl').with_command(%r{supervisorctl restart plexmediaserver}) }
+      end
+    end
   end
 end
